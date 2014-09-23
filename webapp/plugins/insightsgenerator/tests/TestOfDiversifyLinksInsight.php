@@ -37,7 +37,7 @@ require_once THINKUP_WEBAPP_PATH.'_lib/extlib/simpletest/web_tester.php';
 require_once THINKUP_ROOT_PATH. 'webapp/plugins/insightsgenerator/model/class.InsightPluginParent.php';
 require_once THINKUP_ROOT_PATH. 'webapp/plugins/insightsgenerator/insights/diversifylinks.php';
 
-class TestOfDiversifyLinksInsight extends ThinkUpUnitTestCase {
+class TestOfDiversifyLinksInsight extends ThinkUpInsightUnitTestCase {
 
     public function setUp(){
         parent::setUp();
@@ -75,7 +75,7 @@ class TestOfDiversifyLinksInsight extends ThinkUpUnitTestCase {
         $insight_plugin->generateInsight($instance, null, $posts, 3);
 
         $today = date('Y-m-d');
-        $result = $insight_dao->getInsight('diversify_links_weekly', 10, $today); 
+        $result = $insight_dao->getInsight('diversify_links_weekly', 10, $today);
         $this->assertNull($result);
 
         $today = date('Y-m-d');
@@ -169,21 +169,18 @@ class TestOfDiversifyLinksInsight extends ThinkUpUnitTestCase {
         $insight_plugin = new DiversifyLinksInsight();
         $insight_plugin->generateInsight($instance, null, $posts, 3);
         $today = date('Y-m-d');
-        $result = $insight_dao->getInsight('diversify_links_weekly', 10, $today);
-        $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example1.com"},{"v":4}]}'));
-        $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example2.com"},{"v":3}]}'));
-        $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example3.com"},{"v":1}]}'));
-        $text = "Looks like @testeriffic's most shared site last <b>week</b>";
-        $text .=" was <a href='http://example1.com'> example1.com.</a><br> ";
-        $this->assertEqual($result->text,$text);
-        
+
         $result = $insight_dao->getInsight('diversify_links_monthly', 10, $today);
         $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example1.com"},{"v":4}]}'));
         $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example2.com"},{"v":3}]}'));
         $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example3.com"},{"v":2}]}'));
-        $text = "Looks like @testeriffic's most shared site last <b>month</b>";
-        $text .= " was <a href='http://example1.com'> example1.com.</a><br> ";
+        $text = "Looks like @testeriffic's most shared site last month";
+        $text .= " was <a href='http://example1.com'>example1.com.</a>";
         $this->assertEqual($result->text,$text);
+
+        $result->id = 1;
+        $this->debug($this->getRenderedInsightInHTML($result));
+        $this->debug($this->getRenderedInsightInEmail($result));
     }
 
     public function testPopularUrlOver50Links() {
@@ -202,7 +199,7 @@ class TestOfDiversifyLinksInsight extends ThinkUpUnitTestCase {
             'title'=>'Link 1', 'post_key'=>$i, 'expanded_url'=>'http://example1.com/1', 'error'=>'', 'image_src'=>''));
         }
 
-        for($i = 163; $i <= 188; $i++) {
+        for($i = 163; $i <= 186; $i++) {
             $builders[] = FixtureBuilder::build('posts', array('id'=>$i, 'post_id'=>$i, 'author_user_id'=>7612345,
             'author_username'=>'testeriffic', 'author_fullname'=>'Twitter User', 'author_avatar'=>'avatar.jpg',
             'in_reply_to_user_id' => NULL, 'in_retweet_of_post_id' => NULL,
@@ -221,7 +218,7 @@ class TestOfDiversifyLinksInsight extends ThinkUpUnitTestCase {
             $builders[] = FixtureBuilder::build('links', array('url'=>'http://example3.com/1',
             'title'=>'Link 1', 'post_key'=>$i, 'expanded_url'=>'http://example3.com/1', 'error'=>'', 'image_src'=>''));
         }
-        
+
 
 
         TimeHelper::setTime(2);
@@ -233,19 +230,17 @@ class TestOfDiversifyLinksInsight extends ThinkUpUnitTestCase {
         $insight_plugin = new DiversifyLinksInsight();
         $insight_plugin->generateInsight($instance, null, $posts, 3);
         $today = date('Y-m-d');
-        $result = $insight_dao->getInsight('diversify_links_weekly', 10, $today);
-        $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example1.com"},{"v":26}]}'));
-        $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example2.com"},{"v":24}]}'));
-        $text = "Looks like <a href='http://example1.com'> example1.com.</a> was last <b>week's</b>";
-        $text .= " most shared site. <br> Here's @testeriffic's last 50 shared links:";
-        $this->assertEqual($result->text,$text);
-        
+
         $result = $insight_dao->getInsight('diversify_links_monthly', 10, $today);
         $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example1.com"},{"v":26}]}'));
         $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example2.com"},{"v":24}]}'));
-        $text = "Looks like <a href='http://example1.com'> example1.com.</a> was last <b>month's</b>";
-        $text .= " most shared site. <br> Here's @testeriffic's last 50 shared links:";
+        $text = "Looks like <a href='http://example1.com'>example1.com.</a> was last month's";
+        $text .= " most shared site.";
         $this->assertEqual($result->text,$text);
+
+        $result->id = 2;
+        $this->debug($this->getRenderedInsightInHTML($result));
+        $this->debug($this->getRenderedInsightInEmail($result));
     }
 
     public function testPopularUrlOver100Links() {
@@ -268,7 +263,7 @@ class TestOfDiversifyLinksInsight extends ThinkUpUnitTestCase {
             $builders[] = FixtureBuilder::build('posts', array('id'=>$i, 'post_id'=>$i, 'author_user_id'=>7612345,
             'author_username'=>'testeriffic', 'author_fullname'=>'Twitter User', 'author_avatar'=>'avatar.jpg',
             'in_reply_to_user_id' => NULL, 'in_retweet_of_post_id' => NULL,
-            'network'=>'twitter', 'post_text'=>'This is an old post http://example2.com/1 with a link.', 
+            'network'=>'twitter', 'post_text'=>'This is an old post http://example2.com/1 with a link.',
             'source'=>'web','pub_date'=>date('Y-m-d H:i',strtotime("-$i minutes")), 'reply_count_cache'=>0,
             'is_protected'=>0));
             $builders[] = FixtureBuilder::build('links', array('url'=>'http://example2.com/1',
@@ -285,7 +280,7 @@ class TestOfDiversifyLinksInsight extends ThinkUpUnitTestCase {
             $builders[] = FixtureBuilder::build('links', array('url'=>'http://example3.com/1',
             'title'=>'Link 1','post_key'=>$i,'expanded_url'=>'http://example3.com/1','error'=>'', 'image_src'=>''));
         }
-            
+
 
 
         TimeHelper::setTime(1);
@@ -297,21 +292,18 @@ class TestOfDiversifyLinksInsight extends ThinkUpUnitTestCase {
         $insight_plugin = new DiversifyLinksInsight();
         $insight_plugin->generateInsight($instance, null, $posts, 3);
         $today = date('Y-m-d');
-        $result = $insight_dao->getInsight('diversify_links_weekly', 10, $today);
-        $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example1.com"},{"v":44}]}'));
-        $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example2.com"},{"v":34}]}'));
-        $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example3.com"},{"v":22}]}'));
-        $text = "@testeriffic must like <a href='http://example1.com'> example1.com.</a> because it's last";
-        $text .= " <b>week's</b> most shared site.<br> Here's @testeriffic's last 100 shared links:";
-        $this->assertEqual($result->text,$text);
-        
+
         $result = $insight_dao->getInsight('diversify_links_monthly', 10, $today);
         $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example1.com"},{"v":44}]}'));
         $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example2.com"},{"v":34}]}'));
         $this->assertNotEqual(false, strpos($result->related_data, '{"c":[{"v":"example3.com"},{"v":22}]}'));
-        $text = "@testeriffic must like <a href='http://example1.com'> example1.com.</a> because it's last";
-        $text .= " <b>month's</b> most shared site.<br> Here's @testeriffic's last 100 shared links:";
+        $text = "@testeriffic must like <a href='http://example1.com'>example1.com</a> because it was the site";
+        $text .= " @testeriffic shared most last month.";
         $this->assertEqual($result->text,$text);
+
+        $result->id = 3;
+        $this->debug($this->getRenderedInsightInHTML($result));
+        $this->debug($this->getRenderedInsightInEmail($result));
     }
 
     public function test50Majority() {
@@ -348,24 +340,18 @@ class TestOfDiversifyLinksInsight extends ThinkUpUnitTestCase {
         $insight_plugin->generateInsight($instance, null, $posts, 3);
 
         $today = date('Y-m-d');
-        $result = $insight_dao->getInsight('diversify_links_weekly', 10, $today);
-        $text = "More than <b>50%</b> of the links @testeriffic shared last <b>week</b> went to";
-        $text .= " <a href='http://example1.com'> example1.com.</a> Here's @testeriffic's last 50 shared links:";
+        $result = $insight_dao->getInsight('diversify_links_monthly', 10, $today);
+        $text = "More than <b>50%</b> of the links @testeriffic shared last month went to";
+        $text .= " <a href='http://example1.com'>example1.com.</a>";
         $this->assertEqual($result->text, $text);
         $related_data = 'a:1:{s:9:"bar_chart";s:134:"{"rows":[{"c":[{"v":"example1.com"}';
-        $related_data .= ',{"v":50}]}],"cols":[{"type":"string","label":"Url"}';
+        $related_data .= ',{"v":51}]}],"cols":[{"type":"string","label":"Url"}';
         $related_data .= ',{"type":"number","label":"Number of Shares"}]}";}';
         $this->assertEqual($related_data, $result->related_data);
 
-        $today = date('Y-m-d');
-        $result = $insight_dao->getInsight('diversify_links_monthly', 10, $today);
-        $text = "More than <b>50%</b> of the links @testeriffic shared last <b>month</b> went to";
-        $text .= " <a href='http://example1.com'> example1.com.</a> Here's @testeriffic's last 50 shared links:";
-        $this->assertEqual($result->text, $text);
-        $related_data = 'a:1:{s:9:"bar_chart";s:134:"{"rows":[{"c":[{"v":"example1.com"}';
-        $related_data .= ',{"v":50}]}],"cols":[{"type":"string","label":"Url"}';
-        $related_data .= ',{"type":"number","label":"Number of Shares"}]}";}';
-        $this->assertEqual($related_data, $result->related_data);
+        $result->id = 4;
+        $this->debug($this->getRenderedInsightInHTML($result));
+        $this->debug($this->getRenderedInsightInEmail($result));
     }
 
     public function test100Majority() {
@@ -402,25 +388,18 @@ class TestOfDiversifyLinksInsight extends ThinkUpUnitTestCase {
         $insight_plugin->generateInsight($instance, null, $posts, 3);
 
         $today = date('Y-m-d');
-        $result = $insight_dao->getInsight('diversify_links_weekly', 10, $today);
-        $related_data = 'a:1:{s:9:"bar_chart";s:135:"{"rows":[{"c":[{"v":"example1.com"}';
-        $related_data .= ',{"v":100}]}],"cols":[{"type":"string","label":"Url"}';
-        $related_data .= ',{"type":"number","label":"Number of Shares"}]}";}';
-        $text = "Over <b>50%</b> of the links @testeriffic shared last <b>week</b> went to";
-        $text .= " <a href='http://example1.com'> example1.com.</a> Here's @testeriffic's last 100 shared links:";
-        $this->assertEqual($result->text, $text);
-        $this->assertEqual($related_data, $result->related_data);
-
-
-        $today = date('Y-m-d');
         $result = $insight_dao->getInsight('diversify_links_monthly', 10, $today);
         $related_data = 'a:1:{s:9:"bar_chart";s:135:"{"rows":[{"c":[{"v":"example1.com"}';
         $related_data .= ',{"v":100}]}],"cols":[{"type":"string","label":"Url"}';
         $related_data .= ',{"type":"number","label":"Number of Shares"}]}";}';
-        $text = "Over <b>50%</b> of the links @testeriffic shared last <b>month</b> went to";
-        $text .= " <a href='http://example1.com'> example1.com.</a> Here's @testeriffic's last 100 shared links:";
+        $text = "Over <b>50%</b> of the links @testeriffic shared last month went to";
+        $text .= " <a href='http://example1.com'>example1.com.</a>";
         $this->assertEqual($result->text, $text);
         $this->assertEqual($related_data, $result->related_data);
+
+        $result->id = 52;
+        $this->debug($this->getRenderedInsightInHTML($result));
+        $this->debug($this->getRenderedInsightInEmail($result));
 
         TimeHelper::setTime(3);
         $instance = new Instance();
@@ -432,18 +411,14 @@ class TestOfDiversifyLinksInsight extends ThinkUpUnitTestCase {
         $insight_plugin->generateInsight($instance, null, $posts, 3);
 
         $today = date('Y-m-d');
-        $result = $insight_dao->getInsight('diversify_links_weekly', 10, $today);
-        $text = "Over <b>half</b> of the links @testeriffic shared last <b>week</b> came from";
-        $text .= " <a href='http://example1.com'> example1.com.</a> Here's @testeriffic's last 100 shared links:";
-        $this->assertEqual($result->text, $text);
-
-
-
-        $today = date('Y-m-d');
         $result = $insight_dao->getInsight('diversify_links_monthly', 10, $today);
-        $text = "Over <b>half</b> of the links @testeriffic shared last <b>month</b> came from";
-        $text .= " <a href='http://example1.com'> example1.com.</a> Here's @testeriffic's last 100 shared links:";
+        $text = "Over <b>half</b> of the links @testeriffic shared last month came from";
+        $text .= " <a href='http://example1.com'>example1.com.</a>";
         $this->assertEqual($result->text, $text);
+
+        $result->id = 53;
+        $this->debug($this->getRenderedInsightInHTML($result));
+        $this->debug($this->getRenderedInsightInEmail($result));
     }
 }
 

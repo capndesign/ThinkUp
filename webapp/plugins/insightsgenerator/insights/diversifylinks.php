@@ -2,7 +2,7 @@
  /*
   Plugin Name: Diversify your links
   Description: Encourages user to share links from different sources.
-  When: 25th of the month, Every Wednesday.
+  When: Monthly (25th for Twitter, 28th for Facebook)
   */
  /**
   *
@@ -34,35 +34,30 @@ class DiversifyLinksInsight extends InsightPluginParent implements InsightPlugin
     /**
      * Slug for this insight
      */
-    var $slug = ''; 
+    var $slug = '';
     public function generateInsight(Instance $instance, User $user, $last_week_of_posts, $number_days) {
         parent::generateInsight($instance, $user, $last_week_of_posts, $number_days);
         $this->logger->logInfo("Begin generating insight", __METHOD__.','.__LINE__);
 
-        $should_generate_insight_weekly = $this->shouldGenerateWeeklyInsight($this->slug, $instance, 'today',
-        $regenerate=false, 3);
+        $day_of_month = 25;
+        if ($instance->network == 'facebook') {
+            $day_of_month = 28;
+        }
         $should_generate_insight_monthly = $this->shouldGenerateMonthlyInsight($this->slug, $instance, 'today',
-        $regenerate=false, 25);
+            $regenerate=false, $day_of_month);
 
-        if($should_generate_insight_weekly) {
-            $link_dao = DAOFactory::getDAO('LinkDAO');
-            $links = $link_dao->getLinksByUserSinceDaysAgo($instance->network_user_id, $instance->network, 0, 7);
-            $slug = "diversify_links_weekly";
-            $time_frame = "week";
-            if(count($links) > 5) {
-               $this->getInsightData($links,$slug,$time_frame,$instance,$link_dao);
-            }
-        } if($should_generate_insight_monthly) {
+        if ($should_generate_insight_monthly) {
             $link_dao = DAOFactory::getDAO('LinkDAO');
             $links =$link_dao->getLinksByUserSinceDaysAgo($instance->network_user_id, $instance->network, 0, date('t'));
             $slug = "diversify_links_monthly";
             $time_frame = "month";
             if(count($links ) > 5) {
-                $this->getInsightData($links,$slug,$time_frame,$instance,$link_dao);
+                $this->runInsight($links, $slug, $time_frame, $instance, $link_dao);
             }
         }
         $this->logger->logInfo("Done generating insight", __METHOD__.','.__LINE__);
     }
+
     /**
      * Get the Url data. Calculates the data for the most popular link and
      * if it accounts for over 50% of all links shared.
@@ -103,6 +98,8 @@ class DiversifyLinksInsight extends InsightPluginParent implements InsightPlugin
         } elseif($get_option =='vis_data') {
             $resultset = array();
             $metadata = array();
+            arsort($url_counts, SORT_NUMERIC);
+            $url_counts = array_slice($url_counts, 0, 100);
             foreach ($url_counts as $links => $count) {
                 $resultset[] = array('c' => array( array('v' =>$links), array('v' => $count)));
                 $metadata = array( array('type' => 'string', 'label' => 'Url'),
@@ -121,63 +118,51 @@ class DiversifyLinksInsight extends InsightPluginParent implements InsightPlugin
      * @param instance $instance.
      * @param dao $link_dao.
      */
-    private function getInsightData($links, $slug, $time_frame,$instance,$link_dao) {
+    private function runInsight($links, $slug, $time_frame,$instance, $link_dao) {
         $insight = new Insight();
         $terms = new InsightTerms($instance->network);
         $most_used_url = $this->getUrlData($links, 'most_used_url');
         $graph_links = $link_dao->getLinksByUserSinceDaysAgo($instance->network_user_id,
-        $instance->network, 100, 0); //Gets link objects for use in the graph.
-        if(count($graph_links) < 50) {
-            $vis_data = $this->getUrlData($links,'vis_data');
-            $insight->setBarChart($vis_data);
-        }
-        if(count($graph_links) >= 50 && count($graph_links) < 100 ) {
-            $fifty_links = array_slice($graph_links, 0, 50, true);
-            $vis_data = $this->getUrlData($fifty_links,'vis_data');
-            $insight->setBarChart($vis_data);
-            $text_ending = "Here's %username's last 50 shared links:";
-        }
-        if(count($graph_links) == 100) {
-            $vis_data = $this->getUrlData($graph_links,'vis_data');
-            $insight->setBarChart($vis_data);
-            $text_ending = "Here's %username's last 100 shared links:";
-        }
+            $instance->network, 100, 0); //Gets link objects for use in the graph.
+
+        $vis_data = $this->getUrlData($graph_links,'vis_data');
+        $insight->setBarChart($vis_data);
+
         if($most_used_url == NULL) {
             $popular_url = $this->getUrlData($links, 'popular_url');
             $insight->slug = $slug;
             $insight->instance_id = $instance->id;
             $insight->date = $this->insight_date;
-            $text1 = "Looks like %username's most shared site last <b>$time_frame</b> was";
-            $text1 .= " <a href='http://$popular_url'> $popular_url.</a><br> $text_ending";
-            $text2 = "%username must like <a href='http://$popular_url'> $popular_url.</a>";
-            $text2 .= " because it's last <b>$time_frame's</b> most shared site.<br> $text_ending";
-            $text3 = "Looks like <a href='http://$popular_url'> $popular_url.</a>";
-            $text3 .= " was last <b>$time_frame's</b> most shared site. <br> $text_ending";
+            $text1 = "Looks like %username's most shared site last $time_frame was";
+            $text1 .= " <a href='http://$popular_url'>$popular_url.</a>";
+            $text2 = "%username must like <a href='http://$popular_url'>$popular_url</a>";
+            $text2 .= " because it was the site %username shared most last $time_frame.";
+            $text3 = "Looks like <a href='http://$popular_url'>$popular_url.</a>";
+            $text3 .= " was last $time_frame's most shared site.";
             $insight->text = $this->getVariableCopy(array(
               $text1,$text2,$text3));
             $insight->headline = $this->getVariableCopy(array(
-                    "What links has %username been sharing over the last $time_frame ?",
-                    "Here's a breakdown of the links %username shared last $time_frame.",
-                    "Lets see what links %username liked to share last $time_frame."
+                    "What links has %username been sharing over the last $time_frame",
+                    "Here's a breakdown of the links %username shared last $time_frame",
+                    "Lets see what links %username liked to share last $time_frame"
                 ), array('network' => ucfirst($instance->network)));
           $insight->filename = basename(__FILE__, ".php");
         }
 
         if($most_used_url != NULL) {
             $text1 = "Over <b>half</b> of the links $this->username shared ";
-            $text1 .= "last <b>$time_frame</b> came from <a href='http://$most_used_url'> $most_used_url.</a>";
-            $text1 .= " $text_ending";
-            $text2 = "More than <b>50%</b> of the links $this->username shared last <b>$time_frame</b> went to ";
-            $text2 .= "<a href='http://$most_used_url'> $most_used_url.</a> $text_ending";
-            $text3 = "Over <b>50%</b> of the links $this->username shared last <b>$time_frame</b> went to ";
-            $text3 .= "<a href='http://$most_used_url'> $most_used_url.</a> $text_ending";
+            $text1 .= "last $time_frame came from <a href='http://$most_used_url'>$most_used_url.</a>";
+            $text2 = "More than <b>50%</b> of the links $this->username shared last $time_frame went to ";
+            $text2 .= "<a href='http://$most_used_url'>$most_used_url.</a>";
+            $text3 = "Over <b>50%</b> of the links $this->username shared last $time_frame went to ";
+            $text3 .= "<a href='http://$most_used_url'>$most_used_url.</a>";
             $insight->slug = $slug;
             $insight->instance_id = $instance->id;
             $insight->date = $this->insight_date;
             $insight->headline = $this->getVariableCopy(array(
-                "What link was %username's clear favorite last $time_frame ?",
-                "Looks like $instance->network_username likes $most_used_url.",
-                "Spread the love."
+                "What link was %username's clear favorite last $time_frame",
+                "Looks like $instance->network_username likes $most_used_url",
+                "Spread the love"
             ), array('network' => ucfirst($instance->network)));
             $insight->text = $this->getVariableCopy(array(
                 $text1,$text2,$text3
