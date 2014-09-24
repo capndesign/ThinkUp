@@ -108,6 +108,10 @@ class DiversifyLinksInsight extends InsightPluginParent implements InsightPlugin
             }
             $vis_data = json_encode(array('rows' => $resultset, 'cols' => $metadata));
             return $vis_data;
+        } elseif($get_option == 'url_counts') {
+            arsort($url_counts, SORT_NUMERIC);
+            $url_counts = array_slice($url_counts, 0, 100);
+            return $url_counts;
         }
     }
     /**
@@ -127,6 +131,8 @@ class DiversifyLinksInsight extends InsightPluginParent implements InsightPlugin
 
         $vis_data = $this->getUrlData($graph_links,'vis_data');
         $insight->setBarChart($vis_data);
+        $url_counts = $this->getUrlData($links, 'url_counts');
+        $insight->related_data["url_counts"] = $url_counts;
 
         if($most_used_url == NULL) {
             $popular_url = $this->getUrlData($links, 'popular_url');
