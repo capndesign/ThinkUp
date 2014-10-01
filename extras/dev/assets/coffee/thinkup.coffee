@@ -328,3 +328,7 @@ $ ->
 
   $("body").on "click", ".insight-tout .btn-signup", ->
     ga('send', 'event', 'Signup Button', 'click', 'tout');
+
+  $("body").on "click", ".insight .share-link", ->
+    network = if $(@).hasClass "twitter" then "Twitter" else "Facebook"
+    ga('send', 'event', 'Share Link', 'click', network);

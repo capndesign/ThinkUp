@@ -399,8 +399,13 @@
     $("body").on("click", ".navbar .btn-signup", function() {
       return ga('send', 'event', 'Signup Button', 'click', 'navbar');
     });
-    return $("body").on("click", ".insight-tout .btn-signup", function() {
+    $("body").on("click", ".insight-tout .btn-signup", function() {
       return ga('send', 'event', 'Signup Button', 'click', 'tout');
+    });
+    return $("body").on("click", ".insight .share-link", function() {
+      var network;
+      network = $(this).hasClass("twitter") ? "Twitter" : "Facebook";
+      return ga('send', 'event', 'Share Link', 'click', network);
     });
   });
 
